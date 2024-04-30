@@ -1,0 +1,85 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.impute import KNNImputer
+from datetime import datetime
+
+# Load the asset data and maintenance tasks datasets
+asset_data = pd.read_excel('../AssetForecast/ML/AssetDataRisk.xlsx')
+maintenance_data = pd.read_excel('../AssetForecast/ML/maintenancetasks.xlsx')
+
+# Merge the asset data with maintenance tasks data on 'barcode'
+merged_data = pd.merge(asset_data, maintenance_data, on='barcode', how='left')
+
+# Convert 'createdDate' and 'completedAt' columns to datetime objects
+merged_data['createdDate'] = pd.to_datetime(merged_data['createdDate'])
+merged_data['completedAt'] = pd.to_datetime(merged_data['completedAt'])
+
+# Calculate the time until the next maintenance task
+merged_data['time_until_next_maintenance'] = merged_data.groupby('barcode')['createdDate'].diff().dt.total_seconds().fillna(0)
+
+# Define the target variable: maintenance needed not within a certain time threshold
+threshold = 60 * 24 * 3600  # Maintenance needed if next task more than 60 days
+merged_data['maintenance_needed'] = (merged_data['time_until_next_maintenance'] > threshold).astype(int)
+
+# Perform one-hot encoding on categorical variables
+merged_data_encoded = pd.get_dummies(merged_data, columns=['assetType', 'assetCondition', 'assetRepairCategory', 'environmentalRating', 'impactRating'])
+
+# Select features and target variable
+X = merged_data_encoded[['assetLifeExpectancy', 'assetAge', 'riskScore']]
+y = merged_data_encoded['maintenance_needed']
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Preprocessing: Imputation Strategy
+imputer = KNNImputer()
+X_train_imputed = imputer.fit_transform(X_train)
+X_test_imputed = imputer.transform(X_test)
+
+# Preprocessing: Feature Scaling
+scaler = MinMaxScaler()
+X_train_scaled = scaler.fit_transform(X_train_imputed)
+X_test_scaled = scaler.transform(X_test_imputed)
+
+# Initialize and train Random Forest Regressor
+rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_model.fit(X_train_scaled, y_train)
+
+# Make predictions with Random Forest Regressor
+y_pred_rf = rf_model.predict(X_test_scaled)
+
+# Computing evaluation metrics for Random Forest Regressor
+mae_rf = mean_absolute_error(y_test, y_pred_rf)
+mse_rf = mean_squared_error(y_test, y_pred_rf)
+rmse_rf = mean_squared_error(y_test, y_pred_rf, squared=False)
+r2_rf = r2_score(y_test, y_pred_rf)
+
+# Print evaluation metrics for Random Forest Regressor
+print("Random Forest Regressor Metrics:")
+print("Mean Absolute Error (MAE):", mae_rf)
+print("Mean Squared Error (MSE):", mse_rf)
+print("Root Mean Squared Error (RMSE):", rmse_rf)
+print("R-squared (R2) Score:", r2_rf)
+
+# Initialize and train Gradient Boosting Regressor
+gb_model = GradientBoostingRegressor(n_estimators=100, random_state=42)
+gb_model.fit(X_train_scaled, y_train)
+
+# Make predictions with Gradient Boosting Regressor
+y_pred_gb = gb_model.predict(X_test_scaled)
+
+# Computing evaluation metrics for Gradient Boosting Regressor
+mae_gb = mean_absolute_error(y_test, y_pred_gb)
+mse_gb = mean_squared_error(y_test, y_pred_gb)
+rmse_gb = mean_squared_error(y_test, y_pred_gb, squared=False)
+r2_gb = r2_score(y_test, y_pred_gb)
+
+# Print evaluation metrics for Gradient Boosting Regressor
+print("\nGradient Boosting Regressor Metrics:")
+print("Mean Absolute Error (MAE):", mae_gb)
+print("Mean Squared Error (MSE):", mse_gb)
+print("Root Mean Squared Error (RMSE):", rmse_gb)
+print("R-squared (R2) Score:", r2_gb)
