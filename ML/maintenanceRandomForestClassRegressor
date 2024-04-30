@@ -1,0 +1,132 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.preprocessing import OrdinalEncoder, LabelEncoder
+from sklearn.impute import SimpleImputer
+from datetime import datetime
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, explained_variance_score, mean_absolute_percentage_error, median_absolute_error
+from joblib import dump
+
+# Load the asset data and maintenance tasks datasets
+asset_data = pd.read_excel('../AssetForecast/ML/AssetDataRisk.xlsx')
+maint_tasks = pd.read_excel('../AssetForecast/ML/maintenancetasks.xlsx')
+
+# Merge datasets
+merged_data = pd.merge(maint_tasks, asset_data, on='barcode', how='left')
+
+# Feature engineering
+# Convert dates to datetime objects
+merged_data['createdDate'] = pd.to_datetime(merged_data['createdDate'])
+merged_data['installationDate'] = pd.to_datetime(merged_data['installationDate'])
+
+# Calculate age of assets
+merged_data['assetAge'] = (datetime.now() - merged_data['installationDate']).dt.days
+
+# Drop specific columns from the DataFrame
+merged_data.drop(columns=['description', 'startedAt', 'completedAt', 'attendedBy', 'comments', 'approvedBy', 'scheduledBy', 'scheduledAt', 'cancelledBy','riskRating','locationID','installationDate','createdDate', 'RequiredBy'], inplace=True)
+
+# Select categorical columns for ordinal encoding
+categorical_cols = ['environmentalRating', 'impactRating', 'assetCondition', 'assetRepairCategory','taskStatus','taskType','assetType']
+
+# Encode categorical variables using OrdinalEncoder
+encoder = OrdinalEncoder()
+X_encoded = encoder.fit_transform(merged_data[categorical_cols])
+
+# Replace non-numeric columns with encoded values
+X_numeric = merged_data.drop(columns=categorical_cols)
+X_numeric[categorical_cols] = X_encoded
+
+# Add assetAge and riskScore as features
+X_numeric['assetAge'] = merged_data['assetAge']
+X_numeric['riskScore'] = merged_data['riskScore']
+
+# Use the most frequent strategy for imputation
+imputer = SimpleImputer(strategy='most_frequent')
+X_imputed = imputer.fit_transform(X_numeric)
+
+# Convert the imputed array back to a DataFrame
+X_imputed_df = pd.DataFrame(X_imputed, columns=X_numeric.columns)
+
+print(X_imputed_df.columns)
+
+# Drop 'TypeOfMaintenanceRequired' and 'RequiredWithin' columns from the imputed DataFrame
+X_imputed_df.drop(columns=['TypeOfMaintenanceRequired', 'RequiredWithin'], inplace=True)
+
+# Print the updated column names
+print("Column names after dropping 'TypeOfMaintenanceRequired' and 'RequiredWithin':")
+print(X_imputed_df.columns)
+
+# Target variable
+y_task_type = merged_data['TypeOfMaintenanceRequired']
+
+# Initialize the label encoder
+label_encoder = LabelEncoder()
+
+# Fit and transform the target variable
+y_encoded = label_encoder.fit_transform(y_task_type)
+
+# Check the unique values and encoded values
+print("Unique values of 'TypeOfMaintenanceRequired':", y_task_type.unique())
+print("Encoded values:", y_encoded)
+
+# Target variables
+y_due_date = merged_data['RequiredWithin']
+
+# Split data into training and testing sets
+X_train, X_test, y_train_task, y_test_task, y_train_date, y_test_date = train_test_split(X_imputed_df, y_encoded, y_due_date, test_size=0.2, random_state=42)
+
+# Initialize and train models
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+reg = RandomForestRegressor(n_estimators=100, random_state=42)
+
+clf.fit(X_train, y_train_task)
+reg.fit(X_train, y_train_date)
+
+# Save the models and encoders
+dump(clf, 'ML/random_forest_classifier.joblib')
+dump(reg, 'ML/random_forest_regressor.joblib')
+dump(encoder, 'ML/ordinal_encoder.joblib')
+dump(imputer, 'ML/simple_imputer.joblib')
+dump(label_encoder, 'ML/label_encoder.joblib')
+
+# Predictions
+y_pred_task = clf.predict(X_test)
+y_pred_date = reg.predict(X_test)
+
+print("Shape of y_test_task:", y_test_task.shape)
+print("Shape of y_pred_task:", y_pred_task.shape)
+
+# Task Type Prediction Metrics
+accuracy_task = accuracy_score(y_test_task, y_pred_task)
+precision_task = precision_score(y_test_task, y_pred_task, average='weighted')
+recall_task = recall_score(y_test_task, y_pred_task, average='weighted')
+f1_task = f1_score(y_test_task, y_pred_task, average='weighted')
+
+
+
+# Due Date Prediction Metrics
+mae_date = mean_absolute_error(y_test_date, y_pred_date)
+mse_date = mean_squared_error(y_test_date, y_pred_date)
+rmse_date = mean_squared_error(y_test_date, y_pred_date, squared=False)
+r2_date = r2_score(y_test_date, y_pred_date)
+ev_date = explained_variance_score(y_test_date, y_pred_date)
+mape_date = mean_absolute_percentage_error(y_test_date, y_pred_date)
+medae_date = median_absolute_error(y_test_date, y_pred_date)
+
+# Print Task Type Prediction Metrics
+print("Task Type Prediction Metrics:")
+print("Accuracy:", accuracy_task)
+print("Precision:", precision_task)
+print("Recall:", recall_task)
+print("F1 Score:", f1_task)
+
+# Print Due Date Prediction Metrics
+print("\nDue Date Prediction Metrics:")
+print("Mean Absolute Error (MAE):", mae_date)
+print("Mean Squared Error (MSE):", mse_date)
+print("Root Mean Squared Error (RMSE):", rmse_date)
+print("R-squared (R2) Score:", r2_date)
+print("Explained Variance Score:", ev_date)
+print("Mean Absolute Percentage Error (MAPE):", mape_date)
+print("Median Absolute Error (MedAE):", medae_date)

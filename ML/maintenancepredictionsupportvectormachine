@@ -1,0 +1,65 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from datetime import datetime
+import warnings
+
+# Load the asset data and maintenance tasks datasets
+asset_data = pd.read_excel('../AssetForecast/ML/AssetDataRisk.xlsx')
+maintenance_data = pd.read_excel('../AssetForecast/ML/maintenancetasks.xlsx')
+
+# Merge the asset data with maintenance tasks data on 'barcode'
+merged_data = pd.merge(asset_data, maintenance_data, on='barcode', how='left')
+
+# Convert 'createdDate' and 'completedAt' columns to datetime objects
+merged_data['createdDate'] = pd.to_datetime(merged_data['createdDate'])
+merged_data['completedAt'] = pd.to_datetime(merged_data['completedAt'])
+
+# Calculate the time until the next maintenance task
+merged_data['time_until_next_maintenance'] = merged_data.groupby('barcode')['createdDate'].diff().dt.total_seconds().fillna(0)
+
+# Define the target variable: maintenance needed not within a certain time threshold
+threshold = 14 * 24 * 3600  # Maintenance needed if next task more than 60 days
+merged_data['maintenance_needed'] = (merged_data['time_until_next_maintenance'] > threshold).astype(int)
+
+# Perform one-hot encoding on categorical variables
+merged_data_encoded = pd.get_dummies(merged_data, columns=['assetType', 'assetCondition', 'assetRepairCategory', 'environmentalRating', 'impactRating'])
+
+# Select features and target variable
+X = merged_data_encoded[['assetLifeExpectancy', 'assetAge', 'riskScore']]
+y = merged_data_encoded['maintenance_needed']
+
+# Preprocessing: Handling Missing Values
+imputer = SimpleImputer(strategy='mean')
+X_imputed = imputer.fit_transform(X)
+
+# Preprocessing: Feature Scaling
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X_imputed)
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+# Initialize and train the model
+model = SVC(kernel='sigmoid', random_state=100)  # You can change the kernel type if needed
+model.fit(X_train, y_train)
+
+# Make predictions
+y_pred = model.predict(X_test)
+
+# Compute evaluation metrics
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, zero_division=1)  # Set zero_division to 1
+recall = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+roc_auc = roc_auc_score(y_test, y_pred)
+
+# Print the metrics
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
+print("F1 Score:", f1)
+print("ROC AUC Score:", roc_auc)

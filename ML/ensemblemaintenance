@@ -1,0 +1,60 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.metrics import accuracy_score, mean_squared_error
+from sklearn.preprocessing import OrdinalEncoder
+from sklearn.impute import SimpleImputer
+from datetime import datetime
+
+# Load datasets
+maint_tasks = pd.read_excel('maintenancetasks.xlsx')
+asset_data = pd.read_excel('assetdatarisk.xlsx')
+
+# Merge datasets
+merged_data = pd.merge(maint_tasks, asset_data, on='barcode', how='left')
+
+# Feature engineering
+# Convert dates to datetime objects
+merged_data['createdDate'] = pd.to_datetime(merged_data['createdDate'])
+merged_data['installationDate'] = pd.to_datetime(merged_data['installationDate'])
+
+# Calculate age of assets
+merged_data['assetAge'] = (datetime.now() - merged_data['installationDate']).dt.days
+
+# Select relevant features
+X = merged_data[['assetAge', 'riskScore', 'environmentalRating', 'impactRating']]
+
+# Target variables
+y_task_type = merged_data['taskType']
+y_due_date = merged_data['RequiredWithin']
+
+# Preprocessing
+# Fill missing values with median
+imputer = SimpleImputer(strategy='median')
+X_imputed = imputer.fit_transform(X)
+
+# Encode categorical variables using OrdinalEncoder
+encoder = OrdinalEncoder()
+X_encoded = encoder.fit_transform(X_imputed)
+
+# Split data into training and testing sets
+X_train, X_test, y_train_task, y_test_task, y_train_date, y_test_date = train_test_split(X_encoded, y_task_type, y_due_date, test_size=0.2, random_state=42)
+
+# Initialize and train models
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+reg = RandomForestRegressor(n_estimators=100, random_state=42)
+
+clf.fit(X_train, y_train_task)
+reg.fit(X_train, y_train_date)
+
+# Predictions
+y_pred_task = clf.predict(X_test)
+y_pred_date = reg.predict(X_test)
+
+# Model evaluation
+accuracy_task = accuracy_score(y_test_task, y_pred_task)
+mse_date = mean_squared_error(y_test_date, y_pred_date)
+
+print("Accuracy for task type prediction:", accuracy_task)
+print("Mean squared error for due date prediction:", mse_date)
+
