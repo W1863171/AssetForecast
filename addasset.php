@@ -118,7 +118,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <label for="installationDate" class="form-label">Installation Date:</label>
             <input type="date" id="installationDate" name="installationDate" class="form-control" required>
         </div>
-        <!-- Other input fields for riskscore, locationID, etc. -->
         <div class="mb-3">
             <label for="riskscore" class="form-label">Risk Score:</label>
             <input type="text" id="riskscore" name="riskscore" class="form-control" required>

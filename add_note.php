@@ -32,8 +32,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         mysqli_stmt_bind_param($stmt, "sii", $noteText, $assetID, $createdBy);
 
         // Set the parameter values
-        $createdBy = $_SESSION['userID']; // Assuming $_SESSION['userID'] is set properly
-
+        $createdBy = $_SESSION['userID']; 
         // Execute the statement
         if (mysqli_stmt_execute($stmt)) {
             // If the note was successfully added, return a success message

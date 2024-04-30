@@ -24,7 +24,7 @@ if (!$conn) {
 }
 
 // Fetch task information
-$taskID = $_GET['taskID']; // Assuming the task ID is passed through the URL
+$taskID = $_GET['taskID']; 
 
 // Check if the taskID is numeric
 if (!is_numeric($taskID)) {
@@ -86,7 +86,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (mysqli_query($conn, $sql)) {
         // Database updated successfully
         // Redirect to addreading.php with the appropriate barcode
-        header("Location: addreading.php?barcode=" . $barcode); // Change $barcode to the appropriate variable
+        header("Location: addreading.php?barcode=" . $barcode); 
         exit();
     } else {
         echo "Error updating record: " . mysqli_error($conn);

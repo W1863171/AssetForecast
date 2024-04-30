@@ -33,8 +33,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         mysqli_stmt_bind_param($stmt, "sii", $noteText, $lastEditedBy, $noteID);
 
         // Set the parameter values
-        $lastEditedBy = $_SESSION['userID']; // Assuming $_SESSION['userID'] is set properly
-
+        $lastEditedBy = $_SESSION['userID']; 
         // Execute the statement
         if (mysqli_stmt_execute($stmt)) {
             // If the note was successfully edited, return a success message
