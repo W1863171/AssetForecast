@@ -37,6 +37,51 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if (mysqli_query($conn, $sql)) {
         echo "New user created successfully";
+
+        // Retrieve the inserted user's ID
+        $user_id = mysqli_insert_id($conn);
+        
+        //adding to relevant role tables 
+        // Check if the role is 'engineer'
+        if ($role == 'engineer') {
+            // Prepare and execute SQL query to insert into engineer table
+            $engineer_sql = "INSERT INTO engineer (userID, lastTrainingDate) VALUES ('$user_id', '$createdAt')";
+            if (mysqli_query($conn, $engineer_sql)) {
+                echo "User assigned as engineer successfully";
+            } else {
+                echo "Error assigning user as engineer: " . mysqli_error($conn);
+            }
+        }
+        // Check if the role is 'operator'
+        if ($role == 'operator') {
+            // Prepare and execute SQL query to insert into operator table
+            $operator_sql = "INSERT INTO operator (userID) VALUES ('$user_id')";
+            if (mysqli_query($conn, $operator_sql)) {
+                echo "User assigned as operator successfully";
+            } else {
+                echo "Error assigning user as operator: " . mysqli_error($conn);
+            }
+        }
+        // Check if the role is 'scheduler'
+        if ($role == 'scheduler') {
+            // Prepare and execute SQL query to insert into scheduler table
+            $scheduler_sql = "INSERT INTO scheduler (userID) VALUES ('$user_id')";
+            if (mysqli_query($conn, $scheduler_sql)) {
+                echo "User assigned as scheduler successfully";
+            } else {
+                echo "Error assigning user as scheduler: " . mysqli_error($conn);
+            }
+        }
+        // Check if the role is 'facilities manager'
+        if ($role == 'facilities manager') {
+            // Prepare and execute SQL query to insert into facilities manager table
+            $facilitiesmanager_sql = "INSERT INTO facilities_manager (userID) VALUES ('$user_id')";
+            if (mysqli_query($conn, $facilitiesmanager_sql)) {
+                echo "User assigned as facilities manager successfully";
+            } else {
+                echo "Error assigning user as facilities manager: " . mysqli_error($conn);
+            }
+        }
     } else {
         echo "Error: " . $sql . "<br>" . mysqli_error($conn);
     }
